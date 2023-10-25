@@ -20,30 +20,42 @@ function startWebcam() {
     });
 }
 
-function getLabeledFaceDescriptions() {
-  const labels = ["Adi", "Ainul", "Thoriq"];
-  return Promise.all(
-    labels.map(async (label) => {
-      const descriptions = [];
-      for (let i = 1; i <= 5; i++) {
-        const img = await faceapi.fetchImage(`./labels/${label}/${i}.png`);
-        const detections = await faceapi
-          .detectSingleFace(img)
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-        
-        if (detections) {
-          // Deteksi wajah berhasil, tambahkan deskripsi
-          descriptions.push(detections.descriptor);
-        } else {
-          // Deteksi wajah gagal, beri label "unknown"
-          console.log(`No face detected for ${label}/${i}.png`);
-          descriptions.push(new Float32Array(128)); // Deskripsi "unknown"
+let labels;
+
+async function getLabeledFaceDescriptions() {
+  try {
+    const response = await fetch('labels.php'); // Pastikan URL-nya benar
+    if (!response.ok) {
+      throw new Error(`Gagal mengambil data dari server. Kode status: ${response.status}`);
+    }
+    
+    labels = await response.json();
+    console.log(labels); // Ini akan mencetak array label dari hasil PHP
+
+    return Promise.all(
+      labels.map(async (label) => {
+        const descriptions = [];
+        for (let i = 1; i <= 5; i++) {
+          const img = await faceapi.fetchImage(`./labels/${label}/${i}.png`);
+          const detections = await faceapi
+            .detectSingleFace(img)
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+          
+          if (detections) {
+            descriptions.push(detections.descriptor);
+          } else {
+            console.log(`No face detected for ${label}/${i}.png`);
+            descriptions.push(new Float32Array(128)); // Deskripsi "unknown"
+          }
         }
-      }
-      return new faceapi.LabeledFaceDescriptors(label, descriptions);
-    })
-  );
+        return new faceapi.LabeledFaceDescriptors(label, descriptions);
+      })
+    );
+  } catch (error) {
+    console.error('Terjadi kesalahan saat mengambil data dari PHP:', error);
+    throw error;
+  }
 }
 
 
